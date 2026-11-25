@@ -1,110 +1,112 @@
+# Leetcoder Desktop
 
-<p align="center">
-  <img src="https://img.shields.io/github/stars/chanpreet3000/Leetcoder?style=for-the-badge&logo=github&color=gold" alt="GitHub stars" />
-  <img src="https://img.shields.io/github/forks/chanpreet3000/Leetcoder?style=for-the-badge&logo=github" alt="GitHub forks" />
-  <img src="https://img.shields.io/github/issues/chanpreet3000/Leetcoder?style=for-the-badge&logo=github" alt="GitHub issues" />
-</p>
+Leetcoder Desktop is a local Node.js and Puppeteer project that runs saved coding solutions against LeetCode from a Linux desktop. It keeps a separate Chrome session and progress record for each configured LeetCode username, enforces a two-accepted-submission daily cap per account, and can pause safely when requested.
 
-<h1 align="center">Leetcoder</h1>
-
-<h2 align="center">Last verified working on 15 July 2026</h2>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/maintenance-active-success?style=for-the-badge" alt="Actively maintained" />
-  <img src="https://img.shields.io/github/last-commit/chanpreet3000/Leetcoder?style=for-the-badge&logo=git" alt="Last commit" />
-</p>
-
-<p align="center">
-  Automate login, solving, and scraping on LeetCode so you can focus on learning — not busywork.
-</p>
-
----
-
-## This project is maintained
-
-Leetcoder is **actively maintained**. If something breaks after a LeetCode UI change, or you hit a rough edge on Windows, **speak up** — that helps everyone.
-
-- **Bug or regression?** Open a [GitHub issue](https://github.com/chanpreet3000/Leetcoder/issues) with steps to reproduce and your environment (Windows version, Chrome path, what you expected vs. what happened).
-- **Feature idea or question?** Open an [issue](https://github.com/chanpreet3000/Leetcoder/issues) — questions are welcome too.
-- **Want to reach out directly?** Message me on GitHub ([@chanpreet3000](https://github.com/chanpreet3000)) or use the contact options on my profile.
-
-Stars and PRs are welcome. Even a short issue with a screenshot often saves hours for the next person.
-
----
-
-## Important notes
-
-1. Works on **LeetCode’s newer dynamic layout** only.
-2. **Windows only** for now. PRs that add solid macOS support are very welcome.
-3. **Use responsibly** and in line with LeetCode’s terms.
-4. **Privacy:** no data is sent anywhere outside your machine by this tool (see your own Chrome/network setup as usual).
-
-> **Verified working:** **15 July 2026** — if you’re reading this months later, check the “Last commit” badge above; regular commits usually mean the layout selectors are still being kept in sync.
-
-Leetcoder is built to make problem-solving and scraping more efficient. With its automated flow, **Leetcoder can solve on the order of ~200 problems in about an hour** (network and UI permitting).
+The repository currently includes 2,517 solution files. The runner processes every `problems/*.json` file in filename order. It submits the code already stored in each file; it does not generate solutions for missing entries.
 
 ## Features
 
-1. ### Automated problem solving  
-   Automates solving LeetCode questions from your saved solutions, in any language LeetCode supports (C++, Java, Python, Go, Rust, and more).
+- Multiple local account profiles, selected by LeetCode username.
+- Persistent Chrome profile and solved-problem history kept separately for each account.
+- At most two new accepted bot submissions per account per local calendar day.
+- Automatic wait until the next local day when the quota is reached, then resume the queue.
+- `q` or Ctrl+C requests a graceful stop. A submission already sent is allowed to finish and its verdict is recorded.
+- Manual sign-in in a normal Chrome window; the application does not store account passwords.
 
-2. ### Seamless login  
-   Handles authentication via a persistent Chrome profile.
+## Requirements
 
-3. ### Solution scraping  
-   Scrapes and organizes accepted solutions into a local archive.
+- Linux desktop with Google Chrome or Chromium installed.
+- Node.js and npm.
+- A LeetCode account you are authorized to use.
 
-4. ### Resume where you left off  
-   Remembers solved problem names so runs can continue after interruption.
+Chrome is detected from common Linux executable names. To select another Chrome binary, set `GOOGLE_CHROME_EXECUTABLE_PATH` in a `.env` file in the project root:
 
-## Usage disclaimer
+```text
+GOOGLE_CHROME_EXECUTABLE_PATH=/usr/bin/google-chrome
+```
 
-Leetcoder is for **educational use**. Do not use it to misrepresent your progress or break LeetCode’s rules. Always follow [LeetCode’s terms of service](https://leetcode.com/terms/) and community guidelines.
+## Install
 
-## Getting started
+From the project directory:
 
-1. Clone the repo.
-   ```bash
-   git clone https://github.com/chanpreet3000/Leetcoder
-   ```
-2. Open the project in your editor.
-3. In the terminal: `yarn install`
-4. Create a `.env` in the project root:
-   ```text
-   ; Used only for the local Chrome profile folder name.
-   USER_EMAIL=your_email_here
-   ; Chrome → chrome://version/ → Executable Path
-   GOOGLE_CHROME_EXECUTABLE_PATH=C:/Program Files/Google/Chrome/Application/chrome.exe
-   ```
-5. Run: `yarn run start`, then pick a mode:
-   ```text
-   [L] Login to LeetCode   ← run this first
-   [1] Start Leetcode Bot.
-   [2] Scrape Solved Leetcode Problems.
-   ```
+```bash
+npm install
+```
 
-### First run: log in
+## Configure accounts
 
-Pick **`L`** on the first run. A Chrome window opens on the LeetCode login page — log in, then **close the window**. Your session is saved to the local Chrome profile, so run `yarn run start` again and pick `1` or `2` to start.
+Add each LeetCode username you want to use. The first account becomes the default automatically:
 
-> Log in again with `L` whenever your session expires. The login window and the bot can't run at the same time, so it's a separate step.
+```bash
+npm start -- account add your_leetcode_username
+```
 
-### Where data lives
+Usernames are normalized to lowercase for local account IDs, so casing variants map to the same profile and quota.
 
-| Kind | Path |
-|------|------|
-| Scraped solutions | `./UserData/your_email/LeetcoderData/ScrapedSolutions` |
-| Solved problem list (resume) | `./UserData/your_email/LeetcoderData/SolvedProblems.json` |
-| Chrome profile (stay logged in) | `./UserData/your_email/ProfileData` |
+Add another account and set it as the default when you want to switch:
 
-## Compatibility
+```bash
+npm start -- account add another_username
+npm start -- account default another_username
+```
 
-Leetcoder targets **Windows**. Behavior on macOS is not supported today — contributions to fix that are welcome.
+Each account must sign in once using its own Chrome profile. This opens a regular Chrome window; sign in manually, then close the window:
 
-## Contributing
+```bash
+npm start -- login --account your_leetcode_username
+```
 
-Issues and pull requests are welcome on [GitHub](https://github.com/chanpreet3000/Leetcoder). See **This project is maintained** above if you’re unsure how to report something.
+The bot checks that the signed-in username matches the selected account and stops before submitting if it cannot verify the match.
 
-## License
+## Run
 
-Open source under the [MIT License](LICENSE). Free to use and modify for fun or learning; no warranty. If you build on it, a star or mention is appreciated but not required.
+Run the full local solution queue for the default account:
+
+```bash
+npm start
+```
+
+Choose an account for one run without changing the default:
+
+```bash
+npm start -- --account another_username
+```
+
+Optional modes:
+
+```bash
+npm start -- --mode daily --account your_leetcode_username
+npm start -- --mode scrape --account your_leetcode_username
+```
+
+The queue runs without per-problem prompts. When two new solutions are accepted for that account in the current local day, the process waits until local midnight and continues. If the queue finishes before the cap is reached, it exits. Already-solved problems are skipped; failed submissions are reported and can be retried the next time the program runs.
+
+Press **q** or **Ctrl+C** in the terminal to stop. If a submission has already been sent, the bot waits for its verdict before exiting. If a login expires or the site asks for human verification, the bot stops; it does not try to bypass the challenge.
+
+## Local data
+
+All account data is stored under the ignored `UserData/` directory:
+
+| Data | Location |
+| --- | --- |
+| Account registry and default account | `UserData/accounts.json` |
+| Persistent Chrome session | `UserData/accounts/<username>/ProfileData/` |
+| Solved-problem history | `UserData/accounts/<username>/LeetcoderData/SolvedProblems.json` |
+| Daily accepted-submission count | `UserData/accounts/<username>/LeetcoderData/DailyQuota.json` |
+| Scraped accepted solutions | `UserData/accounts/<username>/LeetcoderData/ScrapedSolutions/` |
+
+The daily limit counts distinct problems accepted by this bot; manual submissions are not included. The quota is local application state, not a server-enforced limit. Account usernames are fixed after adding in this version; there is no remove or rename command.
+
+## Project structure
+
+- `managers/AccountManager.js` — local account registry and account selection.
+- `managers/DailyQuotaManager.js` — per-account accepted count and next-day wait.
+- `managers/BrowserManager.js` — Puppeteer browser lifecycle and account-specific Chrome profiles.
+- `leetcoder/LeetcoderSolver.js` — ordered queue, submissions, verdict handling, and graceful stop checks.
+- `problems/` — local problem slugs, language identifiers, and saved solution code.
+
+## Limitations
+
+LeetCode's page structure can change, and some saved solutions may no longer be accepted. Problems requiring a premium subscription, a CAPTCHA, an expired sign-in, or other interactive verification need manual attention. The current two-per-day cap is enforced locally and can be changed by editing local state.
+
+This project is based on [Leetcoder by Chanpreet Singh](https://github.com/chanpreet3000/Leetcoder) and remains under the included MIT license. Use it only in ways allowed by LeetCode's current terms and rules.

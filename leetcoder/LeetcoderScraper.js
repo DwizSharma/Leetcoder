@@ -10,8 +10,9 @@ import {getBrowserDetails} from "../managers/BrowserManager.js";
 import FileManager from "../managers/FileManager.js";
 
 class LeetcoderScraper {
-  static async #scrapeAndSaveCodeFromSubmissionId(id) {
-    const {browser} = await getBrowserDetails();
+  static async #scrapeAndSaveCodeFromSubmissionId(id, account, stopController) {
+    if (stopController?.isStopRequested()) return;
+    const {browser} = await getBrowserDetails(account);
     const page = await browser.newPage();
 
     try {
@@ -43,7 +44,7 @@ class LeetcoderScraper {
 
       const copiedText = clipboardy.readSync();
       let fileContent = {problemName: nameDivValue, language: languageDivValue, code: copiedText};
-      await FileManager.saveScrapedSolution(fileContent);
+      await FileManager.saveScrapedSolution(fileContent, account);
     } catch (err) {
       Logger.error('Something went wrong!', err);
     } finally {
@@ -51,8 +52,9 @@ class LeetcoderScraper {
     }
   }
 
-  static async #scrapeSubmissionIdsFromPageId(id) {
-    const {page} = await getBrowserDetails();
+  static async #scrapeSubmissionIdsFromPageId(id, account, stopController) {
+    if (stopController?.isStopRequested()) return [];
+    const {page} = await getBrowserDetails(account);
     await page.goto(`https://leetcode.com/submissions/#/${id}`, {
       waitUntil: 'networkidle2',
     });
@@ -69,15 +71,17 @@ class LeetcoderScraper {
     }));
   }
 
-  static async #scrapeCodeFromAllSubmissions(browser) {
+  static async #scrapeCodeFromAllSubmissions(account, stopController) {
     for (let page_no = 1; page_no <= 1000; page_no++) {
+      if (stopController?.isStopRequested()) break;
       try {
-        const submission_ids = await this.#scrapeSubmissionIdsFromPageId(page_no, browser);
+        const submission_ids = await this.#scrapeSubmissionIdsFromPageId(page_no, account, stopController);
         Logger.success(`Submission ids fetched from page number ${page_no}`, submission_ids);
 
         const promises = [];
         for (let idx = 0; idx < submission_ids.length; idx++) {
-          promises.push(this.#scrapeAndSaveCodeFromSubmissionId(submission_ids[idx], browser));
+          if (stopController?.isStopRequested()) break;
+          promises.push(this.#scrapeAndSaveCodeFromSubmissionId(submission_ids[idx], account, stopController));
         }
         await Promise.all(promises);
         promises.length = 0;
@@ -88,24 +92,26 @@ class LeetcoderScraper {
     }
   }
 
-  static async scrapeAcceptedSolutions() {
+  static async scrapeAcceptedSolutions(account, stopController) {
     Logger.error('<<<< Starting Leetcoder Scrapper >>>>');
-    await this.#scrapeCodeFromAllSubmissions();
+    await this.#scrapeCodeFromAllSubmissions(account, stopController);
     Logger.error('<<<< Exiting Leetcoder Scrapper >>>>');
   }
 
   /**
    * This is only for testing and scraping global solutions not relevant to the users.
    */
-  static async scrapeAcceptedSolutionsGlobally() {
+  static async scrapeAcceptedSolutionsGlobally(account, stopController) {
     Logger.error('<<<< Starting Leetcoder Scrapper >>>>');
-    const {browser} = getBrowserDetails();
+    const {browser} = await getBrowserDetails(account);
     try {
       let id_no = 1010011580
       while (id_no > 0) {
+        if (stopController?.isStopRequested()) break;
         const promises = [];
         for (let idx = 0; idx < 30; idx++) {
-          promises.push(this.#scrapeAndSaveCodeFromSubmissionId(id_no, browser));
+          if (stopController?.isStopRequested()) break;
+          promises.push(this.#scrapeAndSaveCodeFromSubmissionId(id_no, account, stopController));
           id_no++;
         }
         await Promise.all(promises);

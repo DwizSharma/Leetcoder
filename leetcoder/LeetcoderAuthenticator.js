@@ -1,62 +1,34 @@
-import {getElementBySelector} from "../utils/utils.js";
-import Logger from "../utils/Logger.js";
-import {LEETCODER_ASCII_ART} from "../utils/constants.js";
-import {getBrowserDetails} from "../managers/BrowserManager.js";
+import {sleep} from '../utils/utils.js';
+import Logger from '../utils/Logger.js';
+import {getBrowserDetails} from '../managers/BrowserManager.js';
 
 class LeetcoderAuthenticator {
-  static #loginUserHandler = async () => {
-    const {page} = await getBrowserDetails();
-    await page.goto(`https://leetcode.com/accounts/login/`, {
-      waitUntil: "networkidle2",
+  static async loginUser(account) {
+    const {page} = await getBrowserDetails(account);
+    await page.goto('https://leetcode.com/', {waitUntil: 'domcontentloaded'});
+    await sleep(2);
+
+    const profile = await page.evaluate(() => {
+      const avatar = document.querySelector('#navbar_user_avatar');
+      const avatarLink = avatar?.closest('a') || avatar?.querySelector('a');
+      const headerLink = [...document.querySelectorAll('header a[href], nav a[href]')]
+        .find((link) => /\/(?:u|profile)\/[^/?#]+/i.test(link.getAttribute('href') || ''));
+      return {
+        href: avatarLink?.getAttribute('href') || avatar?.getAttribute('href') || headerLink?.getAttribute('href') || '',
+        username: avatar?.getAttribute('data-username') || '',
+      };
     });
-
-    try {
-      await getElementBySelector(page, '#navbar_user_avatar', 3, 0);
-      Logger.success('User was already logged in.')
-      return;
-    } catch (_) {
+    const match = profile.href.match(/\/(?:u|profile)\/([^/?#]+)/i);
+    const authenticatedUsername = match?.[1] || profile.username;
+    if (!authenticatedUsername) {
+      throw new Error(`Could not verify the signed-in LeetCode username for "${account.username}". Sign in with that account and confirm the profile link is visible; no submissions were made.`);
     }
-    Logger.success('Login Leetcode using your credentials!')
+    if (authenticatedUsername.toLowerCase() !== account.username.toLowerCase()) {
+      throw new Error(`Selected account is "${account.username}" but Chrome is signed in as "${authenticatedUsername}". No submissions were made.`);
+    }
 
-    // Convert ASCII art to HTML-friendly format
-    const formattedAsciiArt = LEETCODER_ASCII_ART.replace(/ /g, '&nbsp;').replace(/\n/g, '<br>');
-
-    await page.evaluate((asciiArt) => {
-      const appElement = document.getElementById('app');
-      if (appElement) {
-        const parDiv = document.createElement('div');
-        const newDiv = document.createElement('div');
-        newDiv.innerHTML = `${asciiArt}<br>
-        Please log in using your credentials (You have only 10 min to login).<br>
-        After Successful Login, Close the browser and start the program again.<br>
-        Cloudfare will always fail, try below steps<br>
-        [1] type email and password, and then sign in without interacting with cloudfare.<br>
-        [2] type email and password, and then click on cloudfare and instantly click sign in.<br>
-        `;
-
-        parDiv.style.display = 'flex';
-        parDiv.style.flexDirection = 'row';
-        parDiv.style.justifyContent = 'center';
-        parDiv.style.alignItems = 'center';
-        parDiv.style.color = '#fcfcfc'
-        parDiv.style.padding = '2rem';
-        parDiv.style.backgroundColor = '#181818';
-
-
-        parDiv.appendChild(newDiv);
-        appElement.insertBefore(parDiv, appElement.firstChild);
-      }
-    }, formattedAsciiArt);
-
-    await getElementBySelector(page, '#navbar_user_avatar', 600, 0);
-    Logger.success('User Logged in successfully');
-  };
-
-  static loginUser = async () => {
-    Logger.error('<<<< Starting Leetcoder Authenticator >>>>');
-    await this.#loginUserHandler();
-    Logger.error('<<<< Exiting Leetcoder Authenticator >>>>');
-  };
+    Logger.success(`Signed in as the selected LeetCode account "${account.username}".`);
+  }
 }
 
 export default LeetcoderAuthenticator;

@@ -68,3 +68,4 @@ export const LEETCODER_MODE_QUESTION = `
     `;
 
 export const EXITING_LEETCODER = `Thanks for using Leetcoder. Please report any bugs/issues Github Link : https://github.com/chanpreet3000/Leetcoder`;
+export const LEETCODER_STOP_KEY = 'q';

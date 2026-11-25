@@ -1,63 +1,69 @@
-import {promises as fs} from "fs";
-import {LEETCODER_DATA_PATH, LEETCODER_SCRAPED_SOLUTIONS_PATH, SOLVED_PROBLEMS_PATH} from "../data.js";
-import Logger from "../utils/Logger.js";
-import path from 'path';
+import {promises as fs} from 'node:fs';
+import path from 'node:path';
+import Logger from '../utils/Logger.js';
+
+const requireAccount = (account) => {
+  if (!account?.username || !account?.paths?.dataDir) throw new Error('A selected account is required for local data access.');
+};
 
 class FileManager {
   static async getAllProblemsNames() {
-    const fileList = await fs.readdir('./problems');
-    const files = fileList.map(file => file.split(".")[0]);
-    Logger.success(`Total Problems found ${files.length}`, files);
-    return files;
+    const files = await fs.readdir('./problems');
+    return files.filter((file) => file.endsWith('.json')).map((file) => file.slice(0, -5)).sort();
   }
 
   static async getProblemDetails(problemName) {
-    const file = await fs.readFile(`./problems/${problemName}.json`, 'utf-8');
+    const file = await fs.readFile(path.join('./problems', `${problemName}.json`), 'utf-8');
     const data = JSON.parse(file);
-    const obj = {language: data.language, code: data.code};
-    Logger.warn(`[PROBLEM_DETAILS]\t\t:`, obj);
-    return obj;
+    if (typeof data.code !== 'string' || typeof data.language !== 'string') {
+      throw new Error(`Problem file "${problemName}.json" must contain string code and language fields.`);
+    }
+    return {language: data.language, code: data.code};
   }
 
-  static async #ensureSolvedProblemSetFile() {
+  static async #ensureSolvedProblemSetFile(account) {
+    requireAccount(account);
+    await fs.mkdir(account.paths.dataDir, {recursive: true});
     try {
-      await fs.access(SOLVED_PROBLEMS_PATH);
-    } catch (_) {
-      Logger.warn(`${SOLVED_PROBLEMS_PATH} was not found, created the file.`)
-      await fs.mkdir(LEETCODER_DATA_PATH, {recursive: true});
-      await fs.writeFile(SOLVED_PROBLEMS_PATH, JSON.stringify([]));
+      await fs.access(account.paths.solvedProblemsPath);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      await fs.writeFile(account.paths.solvedProblemsPath, '[]\n', {mode: 0o600});
     }
   }
 
-  static async getSolvedProblemSet() {
-    await this.#ensureSolvedProblemSetFile();
-    const data = await fs.readFile(SOLVED_PROBLEMS_PATH, 'utf8');
-    return new Set(JSON.parse(data))
+  static async getSolvedProblemSet(account) {
+    await this.#ensureSolvedProblemSetFile(account);
+    const data = await fs.readFile(account.paths.solvedProblemsPath, 'utf8');
+    const solved = JSON.parse(data);
+    if (!Array.isArray(solved) || solved.some((problem) => typeof problem !== 'string')) {
+      throw new Error(`Solved-problem file for "${account.username}" has an invalid format.`);
+    }
+    return new Set(solved);
   }
 
-  static async setSolvedProblemSet(problemName) {
-    const problemSet = await this.getSolvedProblemSet();
+  static async setSolvedProblemSet(problemName, account) {
+    const problemSet = await this.getSolvedProblemSet(account);
     problemSet.add(problemName);
-    Logger.success(`[CACHED]\t\t\t:${problemName}`)
-    await fs.writeFile(SOLVED_PROBLEMS_PATH, JSON.stringify(Array.from(problemSet)));
+    const temporaryPath = `${account.paths.solvedProblemsPath}.tmp`;
+    await fs.writeFile(temporaryPath, `${JSON.stringify(Array.from(problemSet))}\n`, {mode: 0o600});
+    await fs.rename(temporaryPath, account.paths.solvedProblemsPath);
+    Logger.success(`[CACHED]\t\t\t:${problemName} for ${account.username}`);
   }
 
-  static async saveScrapedSolution(fileContent) {
+  static async saveScrapedSolution(fileContent, account) {
+    requireAccount(account);
     const name = fileContent.problemName;
-    await fs.mkdir(LEETCODER_SCRAPED_SOLUTIONS_PATH, {recursive: true});
-    const filePath = path.join(LEETCODER_SCRAPED_SOLUTIONS_PATH, `${name}.json`);
+    await fs.mkdir(account.paths.scrapedSolutionsDir, {recursive: true});
+    const filePath = path.join(account.paths.scrapedSolutionsDir, `${name}.json`);
 
     try {
       await fs.access(filePath);
       Logger.warn(`[ALREADY_SCRAPPED]\t\t:${name}`);
     } catch (error) {
-      Logger.warn(`[SAVING]\t\t\t:${name}`);
-      try {
-        await fs.writeFile(filePath, JSON.stringify(fileContent, null, 4));
-        Logger.success(`[SAVED]\t\t\t\t:${name}`);
-      } catch (err) {
-        Logger.success(`[FAILED]\t\t\t:${name}`, err);
-      }
+      if (error.code !== 'ENOENT') throw error;
+      await fs.writeFile(filePath, JSON.stringify(fileContent, null, 4), {mode: 0o600});
+      Logger.success(`[SAVED]\t\t\t:${name}`);
     }
   }
 }

@@ -1,11 +1,10 @@
 {
-  "name": "leetbot",
+  "name": "leetcoder-desktop",
   "version": "1.0.0",
-  "description": "Leetcode bot to solve questions",
+  "description": "Linux desktop LeetCode solution runner with isolated accounts, daily quotas, and graceful stop",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "author": "Chanpreet Singh",
   "license": "MIT",

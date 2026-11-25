@@ -1,21 +1,22 @@
 import {spawn} from 'child_process';
-import path from 'path';
+import {promises as fs} from 'node:fs';
 import Logger from '../utils/Logger.js';
-import {CHROME_PROFILE_PATH, GOOGLE_CHROME_EXECUTABLE_PATH} from '../data.js';
+import {resolveChromeExecutable} from '../data.js';
 
 class LeetcoderLogin {
-  static loginUser = () => {
+  static loginUser = async (account) => {
+    if (!account?.username || !account?.paths?.profileDir) throw new Error('Select an account before logging in.');
+    const chromeExecutable = resolveChromeExecutable();
+    await fs.mkdir(account.paths.profileDir, {recursive: true});
     return new Promise((resolve, reject) => {
-      const profileDir = path.resolve(CHROME_PROFILE_PATH);
-
-      Logger.success('Opening a normal Chrome window for you to log in...');
+      Logger.success(`Opening Chrome for LeetCode account "${account.username}"...`);
       Logger.success('  1. Log in to LeetCode.');
       Logger.success('  2. Once logged in, close the Chrome window to continue.');
 
       const chrome = spawn(
-        GOOGLE_CHROME_EXECUTABLE_PATH,
+        chromeExecutable,
         [
-          `--user-data-dir=${profileDir}`,
+          `--user-data-dir=${account.paths.profileDir}`,
           '--no-first-run',
           '--no-default-browser-check',
           '--start-maximized',
@@ -25,11 +26,15 @@ class LeetcoderLogin {
       );
 
       chrome.on('error', (err) => {
-        Logger.error(`Failed to launch Chrome at "${GOOGLE_CHROME_EXECUTABLE_PATH}". Check GOOGLE_CHROME_EXECUTABLE_PATH in your .env.`, err);
+        Logger.error(`Failed to launch Chrome at "${chromeExecutable}". Check GOOGLE_CHROME_EXECUTABLE_PATH in your .env.`, err);
         reject(err);
       });
 
-      chrome.on('exit', () => {
+      chrome.on('exit', (code, signal) => {
+        if (code !== 0 || signal) {
+          reject(new Error(`Chrome exited${signal ? ` from signal ${signal}` : ` with status ${code}`}.`));
+          return;
+        }
         Logger.success('Chrome closed. Login saved to your profile.');
         resolve();
       });

@@ -20,22 +20,22 @@ export const getElementBySelector = async (element, selector, timeoutDelay = 30,
   return await element.$$(selector);
 };
 
-let cntrlKey = process.platform === "win32" ? "Control" : "Meta";
+const modifierKey = process.platform === 'darwin' ? 'Meta' : 'Control';
 
 export const selectAllHelper = async (page) => {
-  await page.keyboard.down(cntrlKey);
-  await page.keyboard.press("KeyA");
-  await page.keyboard.up(cntrlKey);
+  await page.keyboard.down(modifierKey);
+  await page.keyboard.press('KeyA');
+  await page.keyboard.up(modifierKey);
 };
 
 export const copyHelper = async (page) => {
-  await page.keyboard.down(cntrlKey);
-  await page.keyboard.press("KeyC");
-  await page.keyboard.up(cntrlKey);
+  await page.keyboard.down(modifierKey);
+  await page.keyboard.press('KeyC');
+  await page.keyboard.up(modifierKey);
 };
 
 export const pasteHelper = async (page) => {
-  await page.keyboard.down(cntrlKey);
-  await page.keyboard.press("KeyV");
-  await page.keyboard.up(cntrlKey);
+  await page.keyboard.down(modifierKey);
+  await page.keyboard.press('KeyV');
+  await page.keyboard.up(modifierKey);
 };
